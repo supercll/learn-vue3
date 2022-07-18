@@ -1,9 +1,9 @@
 import { isObject } from '@vue/shared'
+import { ReactiveFlags, baseHandler } from './baseHandler'
+
 const reactiveMap = new WeakMap() // key必须是对象，弱引用
 // v8的垃圾回收机制  标记删除  引用计数
-const enum ReactiveFlags {
-  IS_REACTIVE = '__v_isReactive',
-}
+
 export function reactive(target) {
   if (!isObject(target)) {
     return target
@@ -16,22 +16,11 @@ export function reactive(target) {
   if (existing) {
     return existing
   }
-  const proxy = new Proxy(target, {
-    get(target, key, receiver) {
-      if (key === ReactiveFlags.IS_REACTIVE) {
-        return true
-      }
-      console.log('这里可以记录这个属性使用了哪个effect')
-      return Reflect.get(target, key, receiver)
-    },
-    set(target, key, value, receiver) {
-      console.log('这里可以通知effect重新执行')
-      return Reflect.set(target, key, value, receiver)
-    },
-  })
+  const proxy = new Proxy(target, baseHandler)
   reactiveMap.set(target, proxy)
   return proxy
 }
+
 // 一个对象已经被代理过了 ，就不要再次被代理了
 // 使用proxy 要搭配Reflect来使用  obj -> proxy
 // 下次你传入的是proxy了，我去这个对象上取值可以命中proxy的get方法
