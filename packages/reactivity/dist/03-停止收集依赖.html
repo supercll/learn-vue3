@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <!-- <script src="../../../node_modules/@vue/reactivity/dist/reactivity.global.js"></script> -->
+    <script src="./reactivity.global.js"></script>
+    <div id="app"></div>
+    <script>
+      // 缓存代理结果 require()
+      const { effect, reactive } = VueReactivity
+
+      // 会对属性进行劫持 proxy， 监听用户的获取操作和设置操作
+
+      const state = reactive({ flag: true, name: 'lc', age: 18 })
+      // effect返回runner的目的是让用户可以自己控制渲染逻辑
+      const runner = effect(() => {
+        // 副作用函数 (effect执行渲染了页面)
+        document.body.innerHTML = state.flag ? state.name : state.age
+      })
+      runner.effect.stop() // 从此丢失响应式
+
+      setTimeout(() => {
+        state.flag = false
+        runner() // 手动执行副作用函数
+      }, 1000)
+    </script>
+  </body>
+</html>

@@ -37,6 +37,12 @@ export class ReactiveEffect {
       }
     }
   }
+  stop() {
+    if (this.active) {
+      this.active = false // 取消响应
+      cleanEffect(this) // 清除依赖
+    }
+  }
 }
 // 哪个对象中的那个属性 对应的哪个effect  一个属性可以对应多个effect
 // 外层用一个map {object: {name:[effect,effect],age:[effect,effect]}}
@@ -86,7 +92,11 @@ export function track(target, key) {
 export function effect(fn) {
   // 将用户传递的函数编程响应式的effect
   const _effect = new ReactiveEffect(fn)
+  // 更改runner中的this
   _effect.run()
+  const runner = _effect.run.bind(_effect)
+  runner.effect = _effect // 暴露effect的实例
+  return runner // 用户可以手动调用runner重新执行
 }
 
 // activeEffect = e2;

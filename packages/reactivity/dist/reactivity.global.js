@@ -55,6 +55,12 @@ var VueReactivity = (() => {
         }
       }
     }
+    stop() {
+      if (this.active) {
+        this.active = false;
+        cleanEffect(this);
+      }
+    }
   };
   var targetMap = /* @__PURE__ */ new WeakMap();
   function trigger(target, key, value) {
@@ -95,6 +101,9 @@ var VueReactivity = (() => {
   function effect(fn) {
     const _effect = new ReactiveEffect(fn);
     _effect.run();
+    const runner = _effect.run.bind(_effect);
+    runner.effect = _effect;
+    return runner;
   }
 
   // packages/shared/src/index.ts
