@@ -18,7 +18,7 @@ export class ReactiveEffect {
   public active = true
   public parent = null
   public deps = [] // effect中用了哪些属性，后续清理的时候要使用
-  constructor(public fn) {} // 你传递的fn我会帮你放到this上
+  constructor(public fn, public scheduler?) {} // 你传递的fn我会帮你放到this上
   // effectScope 可以来实现让所有的effect停止
   run() {
     // 依赖收集  让熟悉和effect 产生关联
@@ -61,9 +61,11 @@ export function triggerEffects(effects) {
     const newEffects: any = new Set(effects)
     newEffects.forEach(effect => {
       if (effect !== activeEffect) {
-        // 保证要执行的effect不是当前的effect
-
-        effect.run() // 数据变化了，找到对应的effect 重新执行
+        if (effect.scheduler) {
+          effect.scheduler() // 可以提供一个调度函数，用户实现自己的逻辑
+        } else {
+          effect.run() // 数据变化了，找到对应的effect 重新执行
+        }
       }
     })
   }
@@ -89,22 +91,12 @@ export function track(target, key) {
   // 让属性记录所用到的effect是谁， 哪个effect对应了哪些属性
 }
 
-export function effect(fn) {
+export function effect(fn, options: { scheduler?: () => void } = {}) {
   // 将用户传递的函数编程响应式的effect
-  const _effect = new ReactiveEffect(fn)
+  const _effect = new ReactiveEffect(fn, options.scheduler)
   // 更改runner中的this
   _effect.run()
   const runner = _effect.run.bind(_effect)
   runner.effect = _effect // 暴露effect的实例
   return runner // 用户可以手动调用runner重新执行
 }
-
-// activeEffect = e2;
-// effect(()=>{ // e1  e1.parent = null
-//     state.name;  // name = e1
-//     effect(()=>{ // e2  e2.parent = e1;
-//         state.age; // age = e2
-//     })
-//     // activeeffect = e2.parent
-//     state.address; // address = e1
-// })
