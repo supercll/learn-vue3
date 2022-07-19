@@ -3,6 +3,17 @@ export let activeEffect = undefined
 // 依赖的effect，同理也让effect记住对应的属性
 // 靠的是数据结构 weakMap : {map:{key:new Set()}}
 // 稍后数据变化的时候 找到对应的map 通过属性出发set中effect
+
+function cleanEffect(effect) {
+  // 需要清理effect中存入属性中的set中的effect
+  // 每次执行前都需要将effect只对应属性的set集合都清理掉
+  // 属性中的set 依然存放effect
+  let deps = effect.deps
+  for (let i = 0; i < deps.length; i++) {
+    deps[i].delete(effect)
+  }
+  effect.deps.length = 0
+}
 export class ReactiveEffect {
   public active = true
   public parent = null
@@ -17,6 +28,7 @@ export class ReactiveEffect {
       try {
         this.parent = activeEffect
         activeEffect = this
+        cleanEffect(this)
         return this.fn() // 去proxy对象上取值, 取之的时候 我要让这个熟悉 和当前的effect函数关联起来，稍后数据变化了 ，可以重新执行effect函数
       } finally {
         // 取消当前正在运行的effect
@@ -35,13 +47,20 @@ export function trigger(target, key, value) {
     return // 属性没有依赖任何的effect
   }
   const effects = depsMap.get(key)
-  effects &&
-    effects.forEach(effect => {
+  triggerEffects(effects)
+}
+export function triggerEffects(effects) {
+  if (effects) {
+    // 创建一个新的Set执行，防止与清理依赖死循环
+    const newEffects: any = new Set(effects)
+    newEffects.forEach(effect => {
       if (effect !== activeEffect) {
         // 保证要执行的effect不是当前的effect
+
         effect.run() // 数据变化了，找到对应的effect 重新执行
       }
     })
+  }
 }
 export function track(target, key) {
   if (activeEffect) {
@@ -60,7 +79,6 @@ export function track(target, key) {
       // 等等 deps 的作用就是让effect 记录用到了哪些属性
       activeEffect.deps.push(deps) // 放的是set
     }
-    debugger
   }
   // 让属性记录所用到的effect是谁， 哪个effect对应了哪些属性
 }
