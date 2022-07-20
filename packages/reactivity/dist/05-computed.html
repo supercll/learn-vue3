@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <!-- <script src="../../../node_modules/@vue/reactivity/dist/reactivity.global.js"></script> -->
+    <script src="./reactivity.global.js"></script>
+    <div id="app"></div>
+    <script>
+      // 缓存代理结果 require()
+      const { effect, reactive, computed } = VueReactivity
+
+      const state = reactive({ firstName: 'L', lastName: 'C' })
+
+      // vue2中想更新值  this.xxx = ''
+      // let fullName = computed(()=>{ // dirty 缓存的概念
+      //     console.log('runner')
+      //     return state.firstName + state.lastName
+      // });
+
+      let fullName = computed({
+        get() {
+          return state.firstName + state.lastName
+        },
+        set(value) {
+          state.lastName = value
+        },
+      })
+      fullName.value = 100
+      // 装箱
+      effect(() => {
+        app.innerHTML = fullName.value
+      })
+
+      setTimeout(() => {
+        debugger
+        state.firstName = 'x'
+      }, 1000)
+
+      // 计算属性就是一个effect 当我取值的时候 会访问firsName，lastName的值，会让firstName和lastKName 来收集当前的computedEffect
+      // 计算属性也可以收集effect
+
+      //  effect
+      // effectComputed
+      // proxy
+    </script>
+  </body>
+</html>

@@ -81,12 +81,16 @@ export function track(target, key) {
     if (!deps) {
       depsMap.set(key, (deps = new Set()))
     }
-    let shouldTrack = !deps.has(activeEffect)
-    if (shouldTrack) {
-      deps.add(activeEffect)
-      // 等等 deps 的作用就是让effect 记录用到了哪些属性
-      activeEffect.deps.push(deps) // 放的是set
-    }
+    trackEffects(deps)
+  }
+}
+
+export function trackEffects(deps) {
+  let shouldTrack = !deps.has(activeEffect)
+  if (shouldTrack) {
+    deps.add(activeEffect)
+    // 等等 deps 的作用就是让effect 记录用到了哪些属性
+    activeEffect.deps.push(deps) // 放的是set
   }
   // 让属性记录所用到的effect是谁， 哪个effect对应了哪些属性
 }
