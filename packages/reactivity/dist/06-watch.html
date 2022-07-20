@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+
+  <body>
+    <!-- <script src="../../../node_modules/vue/dist/vue.global.js"></script> -->
+    <script src="./reactivity.global.js"></script>
+    <div id="app"></div>
+    <script>
+      // watch 虽然也是一个compositionApi 但是这个没有放到响应式模块上
+
+      // const { effect, reactive, computed, watch } = Vue;
+      const { effect, reactive, computed, watch } = VueReactivity
+
+      const state = reactive({ name: 'lc', age: 18, address: { n: 100 } })
+
+      // 数据变化了会重新执行watch的回掉  数据响应式数据， effect
+
+      // 1.watch如果监控的是一个对象那么，对象是无法拿到新值和老值的。 vue2也是一样
+      // 2.vue3 中watch监控的是一个对象的时候默认会深度监控
+      // 3.如果监控的是某个属性的话 需要写成函数的格式
+      // 4.尽量不要采用这种直接放一个对象的方式 （默认会递归访问对象的属性，所以不建议用）
+      watch(
+        () => state.age,
+        (newValue, oldValue) => {
+          console.log(newValue, oldValue)
+        },
+      )
+      setTimeout(() => {
+        state.age++
+      }, 1000)
+
+      // 什么时候使用watch呢？
+      // 监控用户输入的内容，之后发请求获取对应列表  百度搜搜框
+
+      // 节流和防抖的区别？ 按照一定的时间规律的执行  防抖最后一次的为准
+
+
+      // 1 2 3   =>  3个请求是并发的  可能第一个请求2s  第二个请求是1s  第三个请求可能是0.5s  （请求并发问题，我们需要以最后的结果为准，ajax清理操作）
+      // const state = reactive({ flag: true, name: 'lc', age: 18 })
+      // let i = 1000
+      // function getData(timer) {
+      //   return new Promise((resolve, reject) => {
+      //     setTimeout(() => {
+      //       resolve(timer)
+      //     }, timer)
+      //   })
+      // }
+      // // 调用下一次的watch会执行上一次的onCleanup
+      // watch(
+      //   () => state.age,
+      //   async (newValue, oldValue, onCleanup) => {
+      //     let f = false
+      //     onCleanup(() => {
+      //       // 当我们把age= 20的时候会执行第一次的onCleanup中的回掉
+      //       f = true
+      //     })
+      //     i -= 1000
+      //     let r = await getData(i) // 2000
+      //     !f && (document.body.innerHTML = r)
+      //   },
+      //   { flush: 'sync' },
+      // )
+      // state.age = 19 // f = true   1s后应该渲染1000
+      // state.age = 20 //  f = false 0s后显示0
+
+      // 并发多次请求 应该以最后的为结果
+    </script>
+  </body>
+</html>

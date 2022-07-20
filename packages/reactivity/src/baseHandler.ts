@@ -4,6 +4,10 @@ import { track, trigger } from './effect'
 export const enum ReactiveFlags {
   IS_REACTIVE = '__v_isReactive',
 }
+export function isReactive(value) {
+  return value && value[ReactiveFlags.IS_REACTIVE]
+}
+
 export const baseHandler = {
   get(target, key, receiver) {
     if (key === ReactiveFlags.IS_REACTIVE) {
