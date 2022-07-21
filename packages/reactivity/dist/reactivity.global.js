@@ -23,6 +23,8 @@ var VueReactivity = (() => {
     computed: () => computed,
     effect: () => effect,
     reactive: () => reactive,
+    ref: () => ref,
+    shallowRef: () => shallowRef,
     watch: () => watch
   });
 
@@ -102,6 +104,8 @@ var VueReactivity = (() => {
     }
   }
   function trackEffects(deps) {
+    if (!activeEffect)
+      return;
     let shouldTrack = !deps.has(activeEffect);
     if (shouldTrack) {
       deps.add(activeEffect);
@@ -244,6 +248,39 @@ var VueReactivity = (() => {
     const effect2 = new ReactiveEffect(get, job);
     oldValue = effect2.run();
   }
+
+  // packages/reactivity/src/ref.ts
+  function toReactive(value) {
+    return isObject(value) ? reactive(value) : value;
+  }
+  function createRef(rawValue, shallow) {
+    return new RefImpl(rawValue, shallow);
+  }
+  function ref(value) {
+    return createRef(value, false);
+  }
+  function shallowRef(value) {
+    return createRef(value, true);
+  }
+  var RefImpl = class {
+    constructor(rawValue, _shallow) {
+      this.rawValue = rawValue;
+      this._shallow = _shallow;
+      this.__v_isRef = true;
+      this._value = _shallow ? rawValue : toReactive(rawValue);
+    }
+    get value() {
+      trackEffects(this.dep || (this.dep = /* @__PURE__ */ new Set()));
+      return this._value;
+    }
+    set value(newValue) {
+      if (newValue != this.rawValue) {
+        this._value = toReactive(newValue);
+        this.rawValue = newValue;
+        triggerEffects(this.dep);
+      }
+    }
+  };
   return __toCommonJS(src_exports);
 })();
 //# sourceMappingURL=reactivity.global.js.map

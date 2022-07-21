@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+
+  <body>
+    <!-- <script src="../../../node_modules/@vue/reactivity/dist/reactivity.global.js"></script> -->
+    <script src="./reactivity.global.js"></script>
+    <div id="app"></div>
+    <script>
+      const { effect, reactive, computed, watch, ref, shallowRef } =
+        VueReactivity
+
+      const state = reactive({ name: 'lc', age: 18 })
+      const ref2 = ref({ a: { b: 1 } })
+      const shallow = shallowRef(1)
+
+      console.log(ref2)
+      console.log(shallow)
+      // 基于Object.defineProperty
+      // let flag = ref(false); // 基本类型，没有收集能力, 用ref将基本类型变成对象类型
+
+      effect(() => {
+        app.innerHTML = ref2.value.a.b + shallow.value // 取value属性的时候可以收集effect
+      })
+      setInterval(() => {
+        shallow.value = 2
+      }, 2000)
+      setTimeout(() => {
+        ref2.value.a.b = 100 // 改value的时候可以触发effect重新执行
+      }, 1000)
+    </script>
+  </body>
+</html>
