@@ -127,6 +127,7 @@ var VueReactivity = (() => {
   var isFunction = (value) => {
     return typeof value === "function";
   };
+  var isArray = Array.isArray;
 
   // packages/reactivity/src/baseHandler.ts
   function isReactive(value) {
