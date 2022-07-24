@@ -1,5 +1,6 @@
 export function patchStyle(el, preValue, nextValue) {
-  // 我如何比较两个对象的差异？
+  if (preValue == null) preValue = {}
+  if (nextValue == null) nextValue = {}
   // 比对两个对象 需要同时遍历 新的和老的
   const style = el.style
   for (let key in nextValue) {

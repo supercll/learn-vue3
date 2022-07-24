@@ -69,6 +69,9 @@ var VueRuntimeDOM = (() => {
   function isVnode(val) {
     return !!val.__v_isVNode;
   }
+  function isSameVNode(v1, v2) {
+    return v1.type === v2.type && v1.key == v2.key;
+  }
   function createVNode(type, props = null, children = null) {
     let shapeFlag = isString(type) ? ShapeFlags.ELEMENT : 0;
     const vnode = {
@@ -401,9 +404,26 @@ var VueRuntimeDOM = (() => {
         patch(null, child, container);
       }
     }
+    function patchProps(oldProps, newProps, el) {
+      if (oldProps == null)
+        oldProps = {};
+      if (newProps == null)
+        newProps = {};
+      for (let key in newProps) {
+        hostPatchProp(el, key, oldProps[key], newProps[key]);
+      }
+      for (let key in oldProps) {
+        if (newProps[key] == null) {
+          hostPatchProp(el, key, oldProps[key], null);
+        }
+      }
+    }
     function mountElement(vnode, container) {
       let { type, props, children, shapeFlag } = vnode;
       let el = vnode.el = hostCreateElement(type);
+      if (props) {
+        patchProps(null, props, el);
+      }
       if (shapeFlag & 8 /* TEXT_CHILDREN */) {
         hostSetElementText(el, children);
       }
@@ -411,6 +431,58 @@ var VueRuntimeDOM = (() => {
         mountChildren(children, el);
       }
       hostInsert(el, container);
+    }
+    function patchKeyedChildren(c1, c2, el) {
+      let i = 0;
+      let e1 = c1.length - 1;
+      let e2 = c2.length - 1;
+      while (i <= e1 && i <= e2) {
+        const n1 = c1[i];
+        const n2 = c2[i];
+        if (isSameVNode(n1, n2)) {
+          patch(n1, n2, el);
+        } else {
+          break;
+        }
+        i++;
+      }
+      console.log(i, e1, e2);
+    }
+    function patchChildren(n1, n2, el) {
+      let c1 = n1.children;
+      let c2 = n2.children;
+      const prevShapeFlag = n1.shapeFlag;
+      const shapeFlag = n2.shapeFlag;
+      if (shapeFlag & 8 /* TEXT_CHILDREN */) {
+        if (prevShapeFlag & 16 /* ARRAY_CHILDREN */) {
+          unmountChildren(c1);
+        }
+        if (c1 !== c2) {
+          hostSetElementText(el, c2);
+        }
+      } else {
+        if (prevShapeFlag & 16 /* ARRAY_CHILDREN */) {
+          if (shapeFlag & 16 /* ARRAY_CHILDREN */) {
+            patchKeyedChildren(c1, c2, el);
+          } else {
+            unmountChildren(c1);
+          }
+        } else {
+          if (prevShapeFlag & 8 /* TEXT_CHILDREN */) {
+            hostSetElementText(el, "");
+          }
+          if (shapeFlag & 16 /* ARRAY_CHILDREN */) {
+            mountChildren(c2, el);
+          }
+        }
+      }
+    }
+    function patchElement(n1, n2) {
+      let el = n2.el = n1.el;
+      let oldProps = n1.props;
+      let newProps = n2.props;
+      patchProps(oldProps, newProps, el);
+      patchChildren(n1, n2, el);
     }
     function processText(n1, n2, container) {
       if (n1 == null) {
@@ -420,9 +492,23 @@ var VueRuntimeDOM = (() => {
     function processElement(n1, n2, container) {
       if (n1 == null) {
         mountElement(n2, container);
+      } else {
+        patchElement(n1, n2);
       }
     }
+    function unmount(n1) {
+      hostRemove(n1.el);
+    }
+    function unmountChildren(children) {
+      children.forEach((child) => {
+        unmount(child);
+      });
+    }
     function patch(n1, n2, container) {
+      if (n1 && !isSameVNode(n1, n2)) {
+        unmount(n1);
+        n1 = null;
+      }
       const { type, shapeFlag } = n2;
       switch (type) {
         case Text:
@@ -436,6 +522,9 @@ var VueRuntimeDOM = (() => {
     }
     function render2(vnode, container) {
       if (vnode == null) {
+        if (container._vnode) {
+          unmount(container._vnode);
+        }
       } else {
         patch(container._vnode || null, vnode, container);
       }
@@ -526,6 +615,10 @@ var VueRuntimeDOM = (() => {
 
   // packages/runtime-dom/src/patch-prop/patchStyle.ts
   function patchStyle(el, preValue, nextValue) {
+    if (preValue == null)
+      preValue = {};
+    if (nextValue == null)
+      nextValue = {};
     const style = el.style;
     for (let key in nextValue) {
       style[key] = nextValue[key];
