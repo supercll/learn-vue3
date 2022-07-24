@@ -50,7 +50,7 @@ export function createRenderer(options) {
     }
   }
 
-  function mountElement(vnode, container) {
+  function mountElement(vnode, container, anchor) {
     let { type, props, children, shapeFlag } = vnode
     // 因为我们后续需要比对虚拟节点的差异更新页面，所有需要保留对应的真实节点
     let el = (vnode.el = hostCreateElement(type))
@@ -66,7 +66,7 @@ export function createRenderer(options) {
     if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
       mountChildren(children, el)
     }
-    hostInsert(el, container)
+    hostInsert(el, container, anchor)
   }
 
   function patchKeyedChildren(c1, c2, el) {
@@ -77,26 +77,100 @@ export function createRenderer(options) {
 
     // 先考虑 一些顺序相同的情况，追加，或者删除
 
-    let i = 0
+    let index = 0
     let e1 = c1.length - 1
     let e2 = c2.length - 1
 
     // 有任何一方比对完成后 就无需在比对了
-
-    while (i <= e1 && i <= e2) {
-      const n1 = c1[i]
-      const n2 = c2[i]
+    // 1） sync from start
+    while (index <= e1 && index <= e2) {
+      const n1 = c1[index]
+      const n2 = c2[index]
       if (isSameVNode(n1, n2)) {
         patch(n1, n2, el)
       } else {
         break
       }
-      i++
+      index++
     }
-    console.log(i, e1, e2)
+    console.log(index, e1, e2)
+    // 我们可以确定的是 当i的值大于e1 说明，我们已经将老的全部比对完成，但是新的还有剩余
+    // i 到 e2之间的内容就是要新增的
 
-    // a b c d e   f
-    // a b c d e q f
+    // 2）sync from end
+    while (index <= e1 && index <= e2) {
+      const n1 = c1[e1]
+      const n2 = c2[e2]
+      if (isSameVNode(n1, n2)) {
+        patch(n1, n2, el)
+      } else {
+        break
+      }
+      e1--
+      e2--
+    }
+
+    // 3）common sequence
+    // 向后追加 向前追加 + 前删除 后删除
+
+    if (index > e1) {
+      // 老的少，新的多
+      if (index <= e2) {
+        while (index <= e2) {
+          // 其实就是看e2是不是末尾项时
+          const nextPos = e2 + 1
+          // 看一下 下一项是否在数组内，如果在数组内，说明有参照物，否则就没有
+          let anchor = c2.length <= nextPos ? null : c2[nextPos].el
+          patch(null, c2[index], el, anchor) // 插入节点, 找到对应的参照物再进插入
+          index++
+        }
+      }
+    } else if (index > e2) {
+      // 老的多 新的少
+      if (index <= e1) {
+        while (index <= e1) {
+          unmount(c1[index])
+          index++
+        }
+      }
+    }
+
+    // 4）unknown sequence
+    // a b   [c d e a1 b2 c3]      f g
+    // a b   [d e a1 b2 c3 q]      f g  // i=>2 e1=4  e2=4
+    let s1 = index // s1 ->  e1  老的需要比对的部分
+    let s2 = index // s2 ->  e2  新的要比对的部分
+    // v2中用的是新的找老的 ， vue3 是用老的找新的
+    const keyToNewIndexMap = new Map()
+    for (let i = s2; i <= e2; i++) {
+      keyToNewIndexMap.set(c2[i].key, i)
+    }
+    for (let i = s1; i <= e1; i++) {
+      const oldVNode = c1[i]
+      let newIndex = keyToNewIndexMap.get(oldVNode.key) // 用老的去找，看看新的里面有没有
+      if (newIndex == null) {
+        unmount(oldVNode) // 新的里面找不到了，说明要移除掉
+      } else {
+        patch(oldVNode, c2[newIndex], el) // 如果新老都有，我们需要比较两个节点的差异，在去比较他们的儿子？
+      }
+    }
+    let toBePatched = e2 - s2 + 1 // 我们要操作的次数
+    // 我需要按照新的位置重新“排列”，并且还需要将“新增”元素添加上
+    // 我们已知 正确的顺序，我们可以倒叙插入  appendChild
+    for (let i = toBePatched - 1; i >= 0; i--) {
+      const currentIndex = s2 + i // 找到对应的索引
+      const child = c2[currentIndex] // q
+      const anchor =
+        currentIndex + 1 < c2.length ? c2[currentIndex + 1].el : null
+      // 判断要移动还是新增  如何知道child是新增的？
+      if (child.el == null) {
+        patch(null, child, el, anchor)
+      } else {
+        // 这里应该尽量减少需要移动的节点： 最长递增子序列算法 来实现
+        // insertBefore 调用后会被移动
+        hostInsert(child.el, el, anchor) // 如果有el 说明以前渲染过了
+      }
+    }
   }
   function patchChildren(n1, n2, el) {
     let c1 = n1.children
@@ -160,9 +234,9 @@ export function createRenderer(options) {
       hostInsert((n2.el = hostCreateTextNode(n2.children)), container)
     }
   }
-  function processElement(n1, n2, container) {
+  function processElement(n1, n2, container, anchor) {
     if (n1 == null) {
-      mountElement(n2, container)
+      mountElement(n2, container, anchor)
     } else {
       patchElement(n1, n2)
     }
@@ -175,7 +249,7 @@ export function createRenderer(options) {
       unmount(child)
     })
   }
-  function patch(n1, n2, container) {
+  function patch(n1, n2, container, anchor = null) {
     if (n1 && !isSameVNode(n1, n2)) {
       unmount(n1)
       n1 = null // 将n1 重制为null  此时会走n2的初始化
@@ -190,7 +264,7 @@ export function createRenderer(options) {
       default:
         if (shapeFlag & ShapeFlags.ELEMENT) {
           // xx | TEXT_Children  xx | ARRAY_children
-          processElement(n1, n2, container)
+          processElement(n1, n2, container, anchor)
         }
     }
   }

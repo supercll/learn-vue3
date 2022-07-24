@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <!-- <script src="../../../node_modules/@vue/runtime-dom/dist/runtime-dom.global.js"></script> -->
+
+    <script src="./runtime-dom.global.js"></script>
+    <div id="app"></div>
+
+    <script>
+      // 因为用户在操作dom节点的时候，很少有将儿子变成 父亲的情况， 因为如果要做完整的两颗树的比对性能很差
+      // diff算法采用同级节点比对
+      // 父亲比较完毕后会递归比较子节点 （全量的比对）
+
+      const { createRenderer, h, createVNode, render } = VueRuntimeDOM
+
+      // 比较前后两次创建的虚拟节点，更新差异的内容
+
+      render(
+        h('div', [
+          h('li', { key: 'a' }, 'a'),
+          h('li', { key: 'b' }, 'b'),
+          h('li', { key: 'c' }, 'c'),
+          h('li', { key: 'd' }, 'd'),
+          h('li', { key: 'e' }, 'e'),
+          h('li', { key: 'f' }, 'f'),
+          h('li', { key: 'g' }, 'g'),
+        ]),
+        app,
+      )
+
+      setTimeout(() => {
+        render(
+          h('div', [
+            h('li', { key: 'a' }, 'a'),
+            h('li', { key: 'b' }, 'b'),
+            h('li', { key: 'e' }, 'e'),
+            h('li', { key: 'c' }, 'c'),
+            h('li', { key: 'd' }, 'd'),
+            h('li', { key: 'h' }, 'h'),
+            h('li', { key: 'f' }, 'f'),
+            h('li', { key: 'g' }, 'g'),
+          ]),
+          app,
+        )
+      }, 1000)
+    </script>
+  </body>
+</html>
