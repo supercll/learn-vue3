@@ -1,5 +1,6 @@
 import { isNumber, isString } from '@vue/shared'
 import { ShapeFlags, Text, createVNode, isSameVNode } from './createVNode'
+import { getSequence } from './sequence'
 
 export function createRenderer(options) {
   // 用户可以调用此方法传入对应的渲染选项

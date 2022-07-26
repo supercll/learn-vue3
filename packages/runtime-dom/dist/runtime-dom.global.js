@@ -378,6 +378,56 @@ var VueRuntimeDOM = (() => {
     }
   }
 
+  // packages/runtime-core/src/sequence.ts
+  function getSequence(arr) {
+    const len = arr.length;
+    const indexResult = [0];
+    const tmpArr = [];
+    let resultLastIndex;
+    let start;
+    let end;
+    let mid = 0;
+    for (let i2 = 0; i2 < len; i2++) {
+      const arrItem = arr[i2];
+      if (arrItem !== 0) {
+        resultLastIndex = indexResult[indexResult.length - 1];
+        if (arr[resultLastIndex] < arrItem) {
+          tmpArr[i2] = resultLastIndex;
+          indexResult.push(i2);
+          console.log(arrItem, i2, resultLastIndex, indexResult, tmpArr);
+          continue;
+        }
+        console.log(arrItem, i2, resultLastIndex, indexResult, tmpArr);
+        start = 0;
+        end = indexResult.length - 1;
+        while (start < end) {
+          mid = Math.floor((end + start) / 2);
+          if (arr[indexResult[mid]] < arrItem) {
+            start = mid + 1;
+          } else {
+            end = mid;
+          }
+        }
+        const oldArrItem = arr[indexResult[start]] || -Infinity;
+        if (arrItem < oldArrItem) {
+          tmpArr[i2] = indexResult[start - 1];
+          indexResult[start] = i2;
+        }
+      }
+    }
+    let i = indexResult.length;
+    let lastIndex = indexResult[i - 1];
+    while (i-- > 0) {
+      console.log(i, lastIndex, tmpArr[lastIndex]);
+      indexResult[i] = lastIndex;
+      lastIndex = tmpArr[lastIndex];
+    }
+    console.log("valueArr: ", indexResult.map((itemIndex) => {
+      return arr[itemIndex];
+    }));
+    return indexResult;
+  }
+
   // packages/runtime-core/src/renderer.ts
   function createRenderer(options) {
     let {
@@ -474,31 +524,40 @@ var VueRuntimeDOM = (() => {
             index++;
           }
         }
-      }
-      let s1 = index;
-      let s2 = index;
-      const keyToNewIndexMap = /* @__PURE__ */ new Map();
-      for (let i = s2; i <= e2; i++) {
-        keyToNewIndexMap.set(c2[i].key, i);
-      }
-      for (let i = s1; i <= e1; i++) {
-        const oldVNode = c1[i];
-        let newIndex = keyToNewIndexMap.get(oldVNode.key);
-        if (newIndex == null) {
-          unmount(oldVNode);
-        } else {
-          patch(oldVNode, c2[newIndex], el);
+      } else {
+        let s1 = index;
+        let s2 = index;
+        let toBePatched = e2 - s2 + 1;
+        const keyToNewIndexMap = /* @__PURE__ */ new Map();
+        for (let i = s2; i <= e2; i++) {
+          keyToNewIndexMap.set(c2[i].key, i);
         }
-      }
-      let toBePatched = e2 - s2 + 1;
-      for (let i = toBePatched - 1; i >= 0; i--) {
-        const currentIndex = s2 + i;
-        const child = c2[currentIndex];
-        const anchor = currentIndex + 1 < c2.length ? c2[currentIndex + 1].el : null;
-        if (child.el == null) {
-          patch(null, child, el, anchor);
-        } else {
-          hostInsert(child.el, el, anchor);
+        const seq = new Array(toBePatched).fill(0);
+        for (let i = s1; i <= e1; i++) {
+          const oldVNode = c1[i];
+          let newIndex = keyToNewIndexMap.get(oldVNode.key);
+          if (newIndex == null) {
+            unmount(oldVNode);
+          } else {
+            seq[newIndex - s2] = i + 1;
+            patch(oldVNode, c2[newIndex], el);
+          }
+        }
+        let incr = getSequence(seq);
+        let j = incr.length - 1;
+        for (let i = toBePatched - 1; i >= 0; i--) {
+          const currentIndex = s2 + i;
+          const child = c2[currentIndex];
+          const anchor = currentIndex + 1 < c2.length ? c2[currentIndex + 1].el : null;
+          if (seq[i] === 0) {
+            patch(null, child, el, anchor);
+          } else {
+            if (i !== incr[j]) {
+              hostInsert(child.el, el, anchor);
+            } else {
+              j--;
+            }
+          }
         }
       }
     }
