@@ -35,6 +35,7 @@ var VueRuntimeDOM = (() => {
   var src_exports = {};
   __export(src_exports, {
     Fragment: () => Fragment,
+    ReactiveEffect: () => ReactiveEffect,
     Text: () => Text,
     computed: () => computed,
     createRenderer: () => createRenderer,
@@ -73,7 +74,7 @@ var VueRuntimeDOM = (() => {
     return v1.type === v2.type && v1.key == v2.key;
   }
   function createVNode(type, props = null, children = null) {
-    let shapeFlag = isString(type) ? ShapeFlags.ELEMENT : 0;
+    let shapeFlag = isString(type) ? ShapeFlags.ELEMENT : isObject(type) ? ShapeFlags.STATEFUL_COMPONENT : 0;
     const vnode = {
       __v_isVNode: true,
       type,
@@ -428,6 +429,34 @@ var VueRuntimeDOM = (() => {
     return indexResult;
   }
 
+  // packages/runtime-core/src/component.ts
+  function createComponentInstance(vnode) {
+    let instance = {
+      data: null,
+      vnode,
+      subTree: null,
+      isMounted: false,
+      update: null,
+      render: null,
+      propsOptions: vnode.type.props || {},
+      props: {},
+      attrs: {},
+      proxy: null
+    };
+    return instance;
+  }
+  function setupComponent(instance) {
+    let { type, props, children } = instance.vnode;
+    let { data, render: render2 } = type;
+    if (data) {
+      if (!isFunction(data)) {
+        return console.warn("The data option must be a function.");
+      }
+      instance.data = reactive(data.call({}));
+    }
+    instance.render = render2;
+  }
+
   // packages/runtime-core/src/renderer.ts
   function createRenderer(options) {
     let {
@@ -481,6 +510,29 @@ var VueRuntimeDOM = (() => {
         mountChildren(children, el);
       }
       hostInsert(el, container, anchor);
+    }
+    function setupRenderEffect(instance, container, anchor) {
+      const componentUpdate = () => {
+        const { render: render3, data } = instance;
+        if (!instance.isMounted) {
+          const subTree = render3.call(data);
+          patch(null, subTree, container, anchor);
+          instance.subTree = subTree;
+          instance.isMounted = true;
+        } else {
+          const subTree = render3.call(data);
+          patch(instance.subTree, subTree, container, anchor);
+          instance.subTree = subTree;
+        }
+      };
+      const effect2 = new ReactiveEffect(componentUpdate);
+      let update = instance.update = effect2.run.bind(effect2);
+      update();
+    }
+    function mountComponent(vnode, container, anchor) {
+      const instance = vnode.component = createComponentInstance(vnode);
+      setupComponent(instance);
+      setupRenderEffect(instance, container, anchor);
     }
     function patchKeyedChildren(c1, c2, el) {
       let index = 0;
@@ -622,6 +674,12 @@ var VueRuntimeDOM = (() => {
         patchKeyedChildren(n1.children, n2.children, container);
       }
     }
+    function processComponent(n1, n2, container, anchor) {
+      if (n1 == null) {
+        mountComponent(n2, container, anchor);
+      } else {
+      }
+    }
     function unmount(n1) {
       if (n1.type == Fragment) {
         return unmountChildren(n1.children);
@@ -649,6 +707,8 @@ var VueRuntimeDOM = (() => {
         default:
           if (shapeFlag & 1 /* ELEMENT */) {
             processElement(n1, n2, container, anchor);
+          } else if (shapeFlag & 4 /* STATEFUL_COMPONENT */) {
+            processComponent(n1, n2, container, anchor);
           }
       }
     }

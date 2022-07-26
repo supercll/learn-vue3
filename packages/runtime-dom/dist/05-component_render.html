@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <!-- <script src="../../../node_modules/@vue/runtime-dom/dist/runtime-dom.global.js"></script>  -->
+    <script src="./runtime-dom.global.js"></script>
+    <script>
+      const { render, Text, h, Fragment } = VueRuntimeDOM
+
+      // 外层vnode 里层 subTree
+      const VueComponent = {
+        data() {
+          return { name: 'cl' } // 数据源
+        },
+        render() {
+          // render函数返回虚拟节点 决定最终渲染的结果
+          return h(
+            'button',
+            {
+              onClick: () => {
+                this.name = 'lc'
+              },
+            },
+            h('span', this.name),
+          )
+        },
+      }
+      // 处理h 函数， 让h函数支持组建类型 ， 渲染的时候 判断如果是组建类型则调用他的render方法
+      render(h(VueComponent), app)
+
+      // 属性的变化 要导致页面重新渲染
+    </script>
+  </body>
+</html>

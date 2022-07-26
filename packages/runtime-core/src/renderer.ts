@@ -1,4 +1,5 @@
 import { isNumber, isString } from '@vue/shared'
+import { ReactiveEffect } from '@vue/reactivity'
 import {
   ShapeFlags,
   Text,
@@ -7,6 +8,7 @@ import {
   Fragment,
 } from './createVNode'
 import { getSequence } from './sequence'
+import { createComponentInstance, setupComponent } from './component'
 
 export function createRenderer(options) {
   // 用户可以调用此方法传入对应的渲染选项
@@ -75,7 +77,51 @@ export function createRenderer(options) {
     }
     hostInsert(el, container, anchor)
   }
+  function setupRenderEffect(instance, container, anchor) {
+    const componentUpdate = () => {
+      // 初次渲染
+      const { render, data } = instance
 
+      // render函数中的this 既可以取到props 也可以取到data 还可以取到attr
+      if (!instance.isMounted) {
+        // 组件最终要渲染的虚拟节点 就是subtree
+
+        // 这里调用render会做依赖收集 稍后数据变化了 会重新调用update方法
+        const subTree = render.call(data)
+        patch(null, subTree, container, anchor)
+        instance.subTree = subTree
+        instance.isMounted = true
+      } else {
+        // 更新逻辑
+        // 统一处理
+        const subTree = render.call(data)
+        patch(instance.subTree, subTree, container, anchor)
+        instance.subTree = subTree
+      }
+    }
+
+    const effect = new ReactiveEffect(componentUpdate)
+
+    // 用户想强制更新 instance.update()
+    let update = (instance.update = effect.run.bind(effect))
+    update()
+  }
+  function mountComponent(vnode, container, anchor) {
+    // new Component => 组件实例
+
+    // 1） 组件挂载前 需要产生一个组件的实例（对象）  组件的状态、组件的属性、组件对应的生命周期...
+
+    // 我们需要将创建的实例保存到vnode上  let el = vnode.el = document.createElement()
+    const instance = (vnode.component = createComponentInstance(vnode))
+
+    // 2) 组件的插槽，处理组件的属性。。。 给组件的实例复值
+    // 这个地方只要处理属性和插槽的
+
+    setupComponent(instance)
+
+    // 3）给组件产生一个effect ，这样可以组件数据变化后重新渲染
+    setupRenderEffect(instance, container, anchor)
+  }
   function patchKeyedChildren(c1, c2, el) {
     // 比较 c1 和 c2 两个数组之间的差异 ， 再去更新el
     // On
@@ -282,6 +328,14 @@ export function createRenderer(options) {
       patchKeyedChildren(n1.children, n2.children, container)
     }
   }
+  function processComponent(n1, n2, container, anchor) {
+    if (n1 == null) {
+      // 初始化组件
+      mountComponent(n2, container, anchor)
+    } else {
+      // 组件的更新流程  插槽的更新 属性更新
+    }
+  }
 
   function unmount(n1) {
     if (n1.type == Fragment) {
@@ -316,6 +370,8 @@ export function createRenderer(options) {
         if (shapeFlag & ShapeFlags.ELEMENT) {
           // xx | TEXT_Children  xx | ARRAY_children
           processElement(n1, n2, container, anchor)
+        } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+          processComponent(n1, n2, container, anchor)
         }
     }
   }
