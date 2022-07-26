@@ -133,42 +133,63 @@ export function createRenderer(options) {
           index++
         }
       }
-    }
-
-    // 4）unknown sequence
-    // a b   [c d e a1 b2 c3]      f g
-    // a b   [d e a1 b2 c3 q]      f g  // i=>2 e1=4  e2=4
-    let s1 = index // s1 ->  e1  老的需要比对的部分
-    let s2 = index // s2 ->  e2  新的要比对的部分
-    // v2中用的是新的找老的 ， vue3 是用老的找新的
-    const keyToNewIndexMap = new Map()
-    for (let i = s2; i <= e2; i++) {
-      keyToNewIndexMap.set(c2[i].key, i)
-    }
-    for (let i = s1; i <= e1; i++) {
-      const oldVNode = c1[i]
-      let newIndex = keyToNewIndexMap.get(oldVNode.key) // 用老的去找，看看新的里面有没有
-      if (newIndex == null) {
-        unmount(oldVNode) // 新的里面找不到了，说明要移除掉
-      } else {
-        patch(oldVNode, c2[newIndex], el) // 如果新老都有，我们需要比较两个节点的差异，在去比较他们的儿子？
+    } else {
+      // 4）unknown sequence
+      let s1 = index // s1 ->  e1  老的需要比对的部分
+      let s2 = index // s2 ->  e2  新的要比对的部分
+      // v2中用的是新的找老的 ， vue3 是用老的找新的
+      let toBePatched = e2 - s2 + 1 // 我们要操作的次数
+      const keyToNewIndexMap = new Map()
+      for (let i = s2; i <= e2; i++) {
+        keyToNewIndexMap.set(c2[i].key, i)
       }
-    }
-    let toBePatched = e2 - s2 + 1 // 我们要操作的次数
-    // 我需要按照新的位置重新“排列”，并且还需要将“新增”元素添加上
-    // 我们已知 正确的顺序，我们可以倒叙插入  appendChild
-    for (let i = toBePatched - 1; i >= 0; i--) {
-      const currentIndex = s2 + i // 找到对应的索引
-      const child = c2[currentIndex] // q
-      const anchor =
-        currentIndex + 1 < c2.length ? c2[currentIndex + 1].el : null
-      // 判断要移动还是新增  如何知道child是新增的？
-      if (child.el == null) {
-        patch(null, child, el, anchor)
-      } else {
-        // 这里应该尽量减少需要移动的节点： 最长递增子序列算法 来实现
-        // insertBefore 调用后会被移动
-        hostInsert(child.el, el, anchor) // 如果有el 说明以前渲染过了
+
+      const seq = new Array(toBePatched).fill(0) // [0,0,0,0]
+
+      for (let i = s1; i <= e1; i++) {
+        const oldVNode = c1[i]
+        let newIndex = keyToNewIndexMap.get(oldVNode.key) // 用老的去找，看看新的里面有没有
+        if (newIndex == null) {
+          unmount(oldVNode) // 新的里面找不到了，说明要移除掉
+        } else {
+          // 新的老的都有，我就记录下来当前对应的索引 ， 我就可以判断出哪些元素不需要移动了
+          // 用新的位置和老的位置做一个关联
+          seq[newIndex - s2] = i + 1 // 保证查找的索引就算是0 也 + 1 保证不会出现patch过的结果 是0 的情况
+
+          patch(oldVNode, c2[newIndex], el) // 如果新老都有，我们需要比较两个节点的差异，在去比较他们的儿子？
+        }
+      }
+
+      let incr = getSequence(seq)
+
+      // 我需要按照新的位置重新“排列”，并且还需要将“新增”元素添加上
+      // 我们已知 正确的顺序，我们可以倒叙插入  appendChild
+
+      // toBePatched = 4
+
+      // 3 2 1 0   通过子序列优化diff算法
+
+      // incr = [1,2]
+      let j = incr.length - 1
+      for (let i = toBePatched - 1; i >= 0; i--) {
+        const currentIndex = s2 + i // 找到对应的索引
+        const child = c2[currentIndex] // q
+        const anchor =
+          currentIndex + 1 < c2.length ? c2[currentIndex + 1].el : null
+        // 判断要移动还是新增  如何知道child是新增的？
+        if (seq[i] === 0) {
+          // 如果 == 0 说明是新增的
+          patch(null, child, el, anchor)
+        } else {
+          // 这里应该尽量减少需要移动的节点： 最长递增子序列算法 来实现
+          // insertBefore 调用后会被移动
+          if (i !== incr[j]) {
+            // 通过序列来进行比对，找到哪些需要移动
+            hostInsert(child.el, el, anchor) // 如果有el 说明以前渲染过了
+          } else {
+            j-- // 不做任何操作
+          }
+        }
       }
     }
   }
