@@ -1,5 +1,11 @@
 import { isNumber, isString } from '@vue/shared'
-import { ShapeFlags, Text, createVNode, isSameVNode } from './createVNode'
+import {
+  ShapeFlags,
+  Text,
+  createVNode,
+  isSameVNode,
+  Fragment,
+} from './createVNode'
 import { getSequence } from './sequence'
 
 export function createRenderer(options) {
@@ -254,6 +260,12 @@ export function createRenderer(options) {
   function processText(n1, n2, container) {
     if (n1 == null) {
       hostInsert((n2.el = hostCreateTextNode(n2.children)), container)
+    } else {
+      const el = (n2.el = n1.el) // 复用老的节点
+      let newText = n2.children
+      if (newText !== n1.children) {
+        hostSetText(el, newText)
+      }
     }
   }
   function processElement(n1, n2, container, anchor) {
@@ -263,7 +275,19 @@ export function createRenderer(options) {
       patchElement(n1, n2)
     }
   }
+  function processFragment(n1, n2, container) {
+    if (n1 == null) {
+      mountChildren(n2.children, container)
+    } else {
+      patchKeyedChildren(n1.children, n2.children, container)
+    }
+  }
+
   function unmount(n1) {
+    if (n1.type == Fragment) {
+      // fragment 删除所有子节点
+      return unmountChildren(n1.children)
+    }
     hostRemove(n1.el)
   }
   function unmountChildren(children) {
@@ -278,10 +302,15 @@ export function createRenderer(options) {
     }
     // 判断标签名 和 对应的key 如果一样 说明是同一个节点 div  key:1
 
+    // 看n1 如果是null 说明没有之前的虚拟节点
+    // 看n1 如果有值 说明要走diff算法
     const { type, shapeFlag } = n2
     switch (type) {
       case Text:
         processText(n1, n2, container)
+        break
+      case Fragment:
+        processFragment(n1, n2, container)
         break
       default:
         if (shapeFlag & ShapeFlags.ELEMENT) {

@@ -600,6 +600,12 @@ var VueRuntimeDOM = (() => {
     function processText(n1, n2, container) {
       if (n1 == null) {
         hostInsert(n2.el = hostCreateTextNode(n2.children), container);
+      } else {
+        const el = n2.el = n1.el;
+        let newText = n2.children;
+        if (newText !== n1.children) {
+          hostSetText(el, newText);
+        }
       }
     }
     function processElement(n1, n2, container, anchor) {
@@ -609,7 +615,17 @@ var VueRuntimeDOM = (() => {
         patchElement(n1, n2);
       }
     }
+    function processFragment(n1, n2, container) {
+      if (n1 == null) {
+        mountChildren(n2.children, container);
+      } else {
+        patchKeyedChildren(n1.children, n2.children, container);
+      }
+    }
     function unmount(n1) {
+      if (n1.type == Fragment) {
+        return unmountChildren(n1.children);
+      }
       hostRemove(n1.el);
     }
     function unmountChildren(children) {
@@ -626,6 +642,9 @@ var VueRuntimeDOM = (() => {
       switch (type) {
         case Text:
           processText(n1, n2, container);
+          break;
+        case Fragment:
+          processFragment(n1, n2, container);
           break;
         default:
           if (shapeFlag & 1 /* ELEMENT */) {
