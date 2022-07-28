@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="../../../node_modules/@vue/runtime-dom/dist/runtime-dom.global.js"></script>
+    <!-- <script src="./runtime-dom.global.js"></script> -->
+    <script>
+      const { render, Text, h, Fragment } = VueRuntimeDOM
+
+      const VueComponent = {
+        props: {
+          // propsOptions 用户提供的告诉vue哪些是属性，其他不是的会放到attrs中
+          a: Number,
+          b: {},
+        },
+        data() {
+          return { name: 'lc' } // 数据源
+        },
+        render() {
+          // render函数返回虚拟节点 决定最终渲染的结果
+          return h(
+            'button',
+            {
+              onClick: () => {
+                this.name = 'cl'
+              },
+            },
+            h('span', this.name + this.$attrs.c),
+          )
+        },
+      }
+
+      render(h(VueComponent, { a: 1, b: { b: 1 }, c: 3 }), app)
+    </script>
+  </body>
+</html>

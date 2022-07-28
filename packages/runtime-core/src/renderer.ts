@@ -77,35 +77,6 @@ export function createRenderer(options) {
     }
     hostInsert(el, container, anchor)
   }
-  function setupRenderEffect(instance, container, anchor) {
-    const componentUpdate = () => {
-      // 初次渲染
-      const { render, data } = instance
-
-      // render函数中的this 既可以取到props 也可以取到data 还可以取到attr
-      if (!instance.isMounted) {
-        // 组件最终要渲染的虚拟节点 就是subtree
-
-        // 这里调用render会做依赖收集 稍后数据变化了 会重新调用update方法
-        const subTree = render.call(data)
-        patch(null, subTree, container, anchor)
-        instance.subTree = subTree
-        instance.isMounted = true
-      } else {
-        // 更新逻辑
-        // 统一处理
-        const subTree = render.call(data)
-        patch(instance.subTree, subTree, container, anchor)
-        instance.subTree = subTree
-      }
-    }
-
-    const effect = new ReactiveEffect(componentUpdate)
-
-    // 用户想强制更新 instance.update()
-    let update = (instance.update = effect.run.bind(effect))
-    update()
-  }
   function mountComponent(vnode, container, anchor) {
     // new Component => 组件实例
 
@@ -328,12 +299,109 @@ export function createRenderer(options) {
       patchKeyedChildren(n1.children, n2.children, container)
     }
   }
+
+  //渲染更新前
+  function updateComponentPreRender(instance, next) {
+    instance.next = null
+    instance.vnode = next // 更新虚拟节点和next属性
+    updateProps(instance, instance.props, next.props) // 之前的props
+  }
+  // 设置属性变化触发渲染响应式
+  function setupRenderEffect(instance, container, anchor) {
+    const componentUpdate = () => {
+      // 初次渲染
+      const { render, data } = instance
+
+      // render函数中的this 既可以取到props 也可以取到data 还可以取到attr
+      if (!instance.isMounted) {
+        // 组件最终要渲染的虚拟节点 就是subtree
+
+        // 这里调用render会做依赖收集 稍后数据变化了 会重新调用update方法
+        const subTree = render.call(instance.proxy)
+        patch(null, subTree, container, anchor)
+        instance.subTree = subTree
+        instance.isMounted = true
+      } else {
+        // 更新逻辑
+        // 统一处理
+        
+        let next = instance.next // next表示新的虚拟节点
+
+        if (next) {
+          // 要更新属性
+          updateComponentPreRender(instance, next) // 更新属性不会导致页面重新渲染，当前effect正在执行，触发的执行和当前的effect一致会被屏蔽掉
+        }
+
+        const subTree = render.call(instance.proxy)
+        patch(instance.subTree, subTree, container, anchor)
+        instance.subTree = subTree
+      }
+    }
+
+    const effect = new ReactiveEffect(componentUpdate)
+
+    // 用户想强制更新 instance.update()
+    let update = (instance.update = effect.run.bind(effect))
+    update()
+  }
+  // 对比属性是否有改变
+  function hasChange(prevProps, nextProps) {
+    for (let key in nextProps) {
+      if (nextProps[key] != prevProps[key]) {
+        return true
+      }
+    }
+    return false
+  }
+  function updateProps(instance, prevProps, nextProps) {
+    // 如何比较两个属性是否有差异？ 属性中里面的属性 是非响应式的
+
+    // 如果属性个数不一致 直接要更新
+    for (let key in nextProps) {
+      // 这里改的属性 不是通过代理对象修改的， instance.proxy 传递进去了，导致用户不能修改props, 但是我们可以通过instance.props 来修改
+      instance.props[key] = nextProps[key] // 赋予值的时候 会重新调用update
+    }
+    for (let key in instance.props) {
+      if (!(key in nextProps)) {
+        delete instance.props[key]
+      }
+    }
+  }
+
+  // 对比props，是否需要更新
+  function shouldComponentUpdate(n1, n2) {
+    const prevProps = n1.props
+    const nextProps = n2.props
+    // 插槽更新了要不要更新 ，如果要更新，就返回true
+    return hasChange(prevProps, nextProps) // 如果属性有变化说明要更新
+  }
+
+  // 更新逻辑
+  function updateComponent(n1, n2) {
+    // 拿到之前的属性 和之后的属性 看一下是否有变化
+    const instance = (n2.component = n1.component)
+    // 这个props包含attrs, resolvePropValue 只处理 props的属性 不是的不关心
+
+    if (shouldComponentUpdate(n1, n2)) {
+      instance.next = n2 // 保留最新的虚拟节点
+      instance.update() // 让effect重新执行
+    } else {
+      instance.vnode = n2
+    }
+
+    // vue3.0 版本就是写了两份
+
+    // 1）updateProps(instance,prevProps,nextProps);
+    // 2）这里还要重新的去看一下 插槽要不要更新
+    // 3) 应该放到组件更新的逻辑中啊，  不应该在这里来一份
+  }
   function processComponent(n1, n2, container, anchor) {
     if (n1 == null) {
       // 初始化组件
       mountComponent(n2, container, anchor)
     } else {
       // 组件的更新流程  插槽的更新 属性更新
+      updateComponent(n1, n2)
     }
   }
 
