@@ -1,5 +1,6 @@
-import { hasOwn, isFunction } from '@vue/shared'
+import { hasOwn, isFunction, isObject } from '@vue/shared'
 import { reactive } from '@vue/reactivity'
+import { proxyRefs } from 'packages/reactivity/src/ref'
 
 export function createComponentInstance(vnode) {
   let instance = {
@@ -51,9 +52,12 @@ const publicProperties = {
 // 做代理，代理组件实例
 const instanceProxy = {
   get(target, key) {
-    const { data, props } = target
+    const { data, props, setupState } = target
+    // setupState -> data -> props
     if (data && hasOwn(data, key)) {
       return data[key]
+    } else if (setupState && hasOwn(setupState, key)) {
+      return setupState[key]
     } else if (props && hasOwn(props, key)) {
       // if(hasOwn(data,key)){}
       return props[key]
@@ -64,9 +68,11 @@ const instanceProxy = {
     }
   },
   set(target, key, value, receiver) {
-    const { data, props } = target
+    const { data, props, setupState } = target
     if (data && hasOwn(data, key)) {
       data[key] = value
+    } else if (setupState && hasOwn(setupState, key)) {
+      setupState[key] = value
     } else if (props && hasOwn(props, key)) {
       console.warn('props not update')
       return false
@@ -74,20 +80,35 @@ const instanceProxy = {
     return true
   },
 }
+
 export function setupComponent(instance) {
   // type 就是用户传入的属性
-  let { type, props, children } = instance.vnode
+  const { type, props, children } = instance.vnode
   let { data, render } = type
 
   initProps(instance, props)
-  instance.proxy = new Proxy(instance, instanceProxy)
-  if (data) {
-    if (!isFunction(data)) {
-      return console.warn('The data option must be a function.')
+
+  let { setup } = type
+  if (setup) {
+    // 对setup做相应处理
+    const setupContext = {}
+    // 执行setup函数，结果可能是render函数或者对象爱敬，存入setupState中去
+    const setupResult = setup(instance.props, setupContext)
+    console.log(setupResult)
+    if (isFunction(setupResult)) {
+      instance.render = setupResult
+    } else if (isObject(setupResult)) {
+      instance.setupState = proxyRefs(setupResult) // 这里对返回值进行结构
     }
-    // 给实例赋予data属性
-    instance.data = reactive(data.call({}))
   }
 
-  instance.render = render
+  instance.proxy = new Proxy(instance, instanceProxy)
+  if (data) {
+    if (!isFunction(data))
+      return console.warn('The data option must be a function.')
+    instance.data = reactive(data.call(instance.proxy))
+  }
+  if (!instance.render) {
+    instance.render = render
+  }
 }

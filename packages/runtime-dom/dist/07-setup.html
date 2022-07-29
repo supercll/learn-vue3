@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+
+  <body>
+    <div id="app"></div>
+    <!-- <script src="../../../node_modules/@vue/runtime-dom/dist/runtime-dom.global.js"></script> -->
+    <script src="./runtime-dom.global.js"></script>
+    <script>
+      const { render, Text, h, Fragment, getCurrentInstance, ref } =
+        VueRuntimeDOM
+      const My = {
+        props: { address: String },
+        render() {
+          return h('div', this.address)
+        },
+      }
+      const VueComponent = {
+        props: {
+          address: String,
+        },
+        setup(props) {
+          const name = ref('lc')
+          setTimeout(() => {
+            name.value = 'cl'
+          }, 1000)
+          return {
+            name,
+            address: props.address,
+          }
+        },
+        render() {
+          return h(Text, `${this.address},${this.name}`)
+        },
+      }
+      render(h(VueComponent, { address: '123456' }), app)
+    </script>
+  </body>
+</html>

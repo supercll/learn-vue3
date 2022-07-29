@@ -339,6 +339,23 @@ var VueRuntimeDOM = (() => {
   function shallowRef(value) {
     return createRef(value, true);
   }
+  function proxyRefs(objectWithRefs) {
+    return new Proxy(objectWithRefs, {
+      get(target, key, receiver) {
+        let v = Reflect.get(target, key, receiver);
+        return v.__v_isRef ? v.value : v;
+      },
+      set(target, key, value, receiver) {
+        const oldValue = target[key];
+        if (oldValue.__v_isRef) {
+          oldValue.value = value;
+          return true;
+        } else {
+          return Reflect.set(target, key, value, receiver);
+        }
+      }
+    });
+  }
   var RefImpl = class {
     constructor(rawValue, _shallow) {
       this.rawValue = rawValue;
@@ -469,9 +486,11 @@ var VueRuntimeDOM = (() => {
   };
   var instanceProxy = {
     get(target, key) {
-      const { data, props } = target;
+      const { data, props, setupState } = target;
       if (data && hasOwn(data, key)) {
         return data[key];
+      } else if (setupState && hasOwn(setupState, key)) {
+        return setupState[key];
       } else if (props && hasOwn(props, key)) {
         return props[key];
       }
@@ -481,9 +500,11 @@ var VueRuntimeDOM = (() => {
       }
     },
     set(target, key, value, receiver) {
-      const { data, props } = target;
+      const { data, props, setupState } = target;
       if (data && hasOwn(data, key)) {
         data[key] = value;
+      } else if (setupState && hasOwn(setupState, key)) {
+        setupState[key] = value;
       } else if (props && hasOwn(props, key)) {
         console.warn("props not update");
         return false;
@@ -492,17 +513,29 @@ var VueRuntimeDOM = (() => {
     }
   };
   function setupComponent(instance) {
-    let { type, props, children } = instance.vnode;
+    const { type, props, children } = instance.vnode;
     let { data, render: render2 } = type;
     initProps(instance, props);
+    let { setup } = type;
+    if (setup) {
+      const setupContext = {};
+      const setupResult = setup(instance.props, setupContext);
+      console.log(setupResult);
+      if (isFunction(setupResult)) {
+        instance.render = setupResult;
+      } else if (isObject(setupResult)) {
+        instance.setupState = proxyRefs(setupResult);
+      }
+    }
     instance.proxy = new Proxy(instance, instanceProxy);
     if (data) {
-      if (!isFunction(data)) {
+      if (!isFunction(data))
         return console.warn("The data option must be a function.");
-      }
-      instance.data = reactive(data.call({}));
+      instance.data = reactive(data.call(instance.proxy));
     }
-    instance.render = render2;
+    if (!instance.render) {
+      instance.render = render2;
+    }
   }
 
   // packages/runtime-core/src/renderer.ts
