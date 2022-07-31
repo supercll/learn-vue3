@@ -31,14 +31,17 @@ export function createVNode(type, props = null, children = null) {
   }
   if (children) {
     let temp = 0
-    if (isArray(children)) {
+    if (Array.isArray(children)) {
       // 走到createVnode 要么是数组要么是字符串 h()中会对children做处理
       temp = ShapeFlags.ARRAY_CHILDREN
+    } else if (isObject(children)) {
+      // 类型是插槽
+      temp = ShapeFlags.SLOTS_CHILDREN
     } else {
       children = String(children)
       temp = ShapeFlags.TEXT_CHILDREN
     }
-    vnode.shapeFlag = vnode.shapeFlag | temp
+    vnode.shapeFlag |= temp
   }
   // shapeFlags  我想知到这个虚拟节点的儿子是数组 还是元素 还是文本
   return vnode

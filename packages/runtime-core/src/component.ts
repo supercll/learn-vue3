@@ -1,6 +1,7 @@
 import { hasOwn, isFunction, isObject } from '@vue/shared'
 import { reactive } from '@vue/reactivity'
 import { proxyRefs } from 'packages/reactivity/src/ref'
+import { ShapeFlags } from './createVNode'
 
 export function createComponentInstance(vnode) {
   let instance = {
@@ -19,11 +20,19 @@ export function createComponentInstance(vnode) {
     attrs: {}, // 这个代表的是 没有接受
 
     proxy: null, // 代理对象
+    slots: null, // 初始化插槽属性
   }
 
   return instance
 }
 
+function initSlots(instance, children) {
+  if (instance.vnode.shapeFlag & ShapeFlags.SLOTS_CHILDREN) {
+    instance.slots = children
+  } else {
+    instance.slots = {}
+  }
+}
 function initProps(instance, rawProps) {
   const props = {}
   const attrs = {}
@@ -48,6 +57,7 @@ function initProps(instance, rawProps) {
 }
 const publicProperties = {
   $attrs: instance => instance.attrs,
+  $slots: i => i.slots,
 }
 // 做代理，代理组件实例
 const instanceProxy = {
@@ -87,7 +97,7 @@ export function setupComponent(instance) {
   let { data, render } = type
 
   initProps(instance, props)
-
+  initSlots(instance, children) // 初始化插槽
   let { setup } = type
   if (setup) {
     // 对setup做相应处理

@@ -88,13 +88,15 @@ var VueRuntimeDOM = (() => {
     };
     if (children) {
       let temp = 0;
-      if (isArray(children)) {
+      if (Array.isArray(children)) {
         temp = ShapeFlags.ARRAY_CHILDREN;
+      } else if (isObject(children)) {
+        temp = ShapeFlags.SLOTS_CHILDREN;
       } else {
         children = String(children);
         temp = ShapeFlags.TEXT_CHILDREN;
       }
-      vnode.shapeFlag = vnode.shapeFlag | temp;
+      vnode.shapeFlag |= temp;
     }
     return vnode;
   }
@@ -460,9 +462,17 @@ var VueRuntimeDOM = (() => {
       propsOptions: vnode.type.props || {},
       props: {},
       attrs: {},
-      proxy: null
+      proxy: null,
+      slots: null
     };
     return instance;
+  }
+  function initSlots(instance, children) {
+    if (instance.vnode.shapeFlag & 32 /* SLOTS_CHILDREN */) {
+      instance.slots = children;
+    } else {
+      instance.slots = {};
+    }
   }
   function initProps(instance, rawProps) {
     const props = {};
@@ -482,7 +492,8 @@ var VueRuntimeDOM = (() => {
     instance.attrs = attrs;
   }
   var publicProperties = {
-    $attrs: (instance) => instance.attrs
+    $attrs: (instance) => instance.attrs,
+    $slots: (i) => i.slots
   };
   var instanceProxy = {
     get(target, key) {
@@ -516,6 +527,7 @@ var VueRuntimeDOM = (() => {
     const { type, props, children } = instance.vnode;
     let { data, render: render2 } = type;
     initProps(instance, props);
+    initSlots(instance, children);
     let { setup } = type;
     if (setup) {
       const setupContext = {};
