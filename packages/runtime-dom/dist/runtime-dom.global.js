@@ -637,7 +637,6 @@ var VueRuntimeDOM = (() => {
         }
         index++;
       }
-      console.log(index, e1, e2);
       while (index <= e1 && index <= e2) {
         const n1 = c1[e1];
         const n2 = c2[e2];
@@ -767,6 +766,7 @@ var VueRuntimeDOM = (() => {
       instance2.next = null;
       instance2.vnode = next;
       updateProps(instance2, instance2.props, next.props);
+      Object.assign(instance2.slots, next.children);
     }
     function setupRenderEffect(instance2, container, anchor) {
       const componentUpdate = () => {
@@ -821,7 +821,13 @@ var VueRuntimeDOM = (() => {
     function shouldComponentUpdate(n1, n2) {
       const prevProps = n1.props;
       const nextProps = n2.props;
-      return hasChange(prevProps, nextProps);
+      if (hasChange(prevProps, nextProps)) {
+        return true;
+      }
+      if (n1.children || n2.children) {
+        return true;
+      }
+      return false;
     }
     function updateComponent(n1, n2) {
       const instance2 = n2.component = n1.component;

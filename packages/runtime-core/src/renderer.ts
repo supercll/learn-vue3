@@ -117,7 +117,6 @@ export function createRenderer(options) {
       }
       index++
     }
-    console.log(index, e1, e2)
     // 我们可以确定的是 当i的值大于e1 说明，我们已经将老的全部比对完成，但是新的还有剩余
     // i 到 e2之间的内容就是要新增的
 
@@ -305,6 +304,7 @@ export function createRenderer(options) {
     instance.next = null
     instance.vnode = next // 更新虚拟节点和next属性
     updateProps(instance, instance.props, next.props) // 之前的props
+    Object.assign(instance.slots, next.children) // 更新插槽
   }
   // 设置属性变化触发渲染响应式
   function setupRenderEffect(instance, container, anchor) {
@@ -387,7 +387,15 @@ export function createRenderer(options) {
     const prevProps = n1.props
     const nextProps = n2.props
     // 插槽更新了要不要更新 ，如果要更新，就返回true
-    return hasChange(prevProps, nextProps) // 如果属性有变化说明要更新
+
+    if (hasChange(prevProps, nextProps)) {
+      return true
+    }
+    if (n1.children || n2.children) {
+      return true
+    }
+
+    return false // 如果属性有变化说明要更新
   }
 
   // 更新逻辑
