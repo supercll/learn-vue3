@@ -9,6 +9,7 @@ import {
 } from './createVNode'
 import { getSequence } from './sequence'
 import { createComponentInstance, setupComponent } from './component'
+import { queueJob } from "./scheduler";
 
 export function createRenderer(options) {
   // 用户可以调用此方法传入对应的渲染选项
@@ -352,7 +353,9 @@ export function createRenderer(options) {
       }
     }
 
-    const effect = new ReactiveEffect(componentUpdate)
+    const effect = new ReactiveEffect(componentUpdate, () =>
+      queueJob(instance.update),
+    )
 
     // 用户想强制更新 instance.update()
     let update = (instance.update = effect.run.bind(effect))
