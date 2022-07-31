@@ -1,6 +1,5 @@
 import { hasOwn, isFunction, isObject } from '@vue/shared'
-import { reactive } from '@vue/reactivity'
-import { proxyRefs } from 'packages/reactivity/src/ref'
+import { reactive, proxyRefs } from '@vue/reactivity'
 import { ShapeFlags } from './createVNode'
 
 export let instance = null
