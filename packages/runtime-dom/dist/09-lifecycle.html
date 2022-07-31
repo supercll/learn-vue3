@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+
+  <body>
+    <div id="app"></div>
+    <!-- <script src="../../../node_modules/@vue/runtime-dom/dist/runtime-dom.global.js"></script> -->
+    <script src="./runtime-dom.global.js"></script>
+    <script>
+      const {
+        render,
+        Text,
+        h,
+        Fragment,
+        getCurrentInstance,
+        reactive,
+        toRefs,
+        onMounted,
+        onBeforeMount,
+        onUpdated,
+      } = VueRuntimeDOM
+
+      // 实现组件生命周期、 provide,inject、 keep-alive组件实现 ref的实现原理原理  Pinia的使用 实现原理
+      // optionsApi  pinia compositionApi
+      const VueComponent = {
+        setup() {
+          // vue2的写法都是 optionsApi
+
+          // render函数渲染完毕后执行的功能， 这样写生命周期方便复用
+          onMounted(() => {
+            // 生命周期要将当前组件的实例收集起来
+            console.log(getCurrentInstance())
+            console.log('m1')
+          })
+          onMounted(() => {
+            // 生命周期要将当前组件的实例收集起来
+
+            console.log('m2')
+          })
+          onBeforeMount(() => {
+            console.log('bm')
+          })
+          onUpdated(() => {
+            console.log('u')
+          })
+        },
+        render() {
+          return h('div', 'hello')
+        },
+      }
+      render(h(VueComponent), app)
+    </script>
+  </body>
+</html>

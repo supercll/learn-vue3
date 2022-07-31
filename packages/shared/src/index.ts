@@ -16,3 +16,10 @@ export const isNumber = value => {
 
 const hasOwnProperty = Object.prototype.hasOwnProperty
 export const hasOwn = (obj, key) => hasOwnProperty.call(obj, key)
+
+// 调用生命周期函数
+export function invokerFns(fns) {
+  for (let i = 0; i < fns.length; i++) {
+    fns[i]()
+  }
+}

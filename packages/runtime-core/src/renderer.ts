@@ -1,4 +1,4 @@
-import { isNumber, isString } from '@vue/shared'
+import { isNumber, isString, invokerFns } from '@vue/shared'
 import { ReactiveEffect } from '@vue/reactivity'
 import {
   ShapeFlags,
@@ -315,16 +315,26 @@ export function createRenderer(options) {
       // render函数中的this 既可以取到props 也可以取到data 还可以取到attr
       if (!instance.isMounted) {
         // 组件最终要渲染的虚拟节点 就是subtree
-
+        const { bm, m } = instance
+        if (bm) {
+          // 挂载前
+          invokerFns(bm)
+        }
+        // 这里调用
         // 这里调用render会做依赖收集 稍后数据变化了 会重新调用update方法
         const subTree = render.call(instance.proxy)
         patch(null, subTree, container, anchor)
         instance.subTree = subTree
         instance.isMounted = true
+
+        if (m) {
+          // 挂载完成
+          invokerFns(m)
+        }
       } else {
         // 更新逻辑
         // 统一处理
-        
+
         let next = instance.next // next表示新的虚拟节点
 
         if (next) {
@@ -334,6 +344,10 @@ export function createRenderer(options) {
 
         const subTree = render.call(instance.proxy)
         patch(instance.subTree, subTree, container, anchor)
+        if (instance.u) {
+          // 更新完成
+          invokerFns(instance.u)
+        }
         instance.subTree = subTree
       }
     }

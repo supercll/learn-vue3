@@ -3,6 +3,11 @@ import { reactive } from '@vue/reactivity'
 import { proxyRefs } from 'packages/reactivity/src/ref'
 import { ShapeFlags } from './createVNode'
 
+export let instance = null
+
+export const getCurrentInstance = () => instance
+export const setCurrentInstance = i => (instance = i)
+
 export function createComponentInstance(vnode) {
   let instance = {
     data: null, // 组件本身的数据
@@ -102,9 +107,10 @@ export function setupComponent(instance) {
   if (setup) {
     // 对setup做相应处理
     const setupContext = {}
+    setCurrentInstance(instance) // 在调用setup的时候保存当前实例
     // 执行setup函数，结果可能是render函数或者对象爱敬，存入setupState中去
     const setupResult = setup(instance.props, setupContext)
-    console.log(setupResult)
+    setCurrentInstance(null)
     if (isFunction(setupResult)) {
       instance.render = setupResult
     } else if (isObject(setupResult)) {
