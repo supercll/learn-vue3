@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <!-- <script src="../../../node_modules/@vue/runtime-dom/dist/runtime-dom.global.js"></script> -->
+    <script src="./runtime-dom.global.js"></script>
+    <script>
+      const {
+        KeepAlive,
+        render,
+        Text,
+        h,
+        Fragment,
+        getCurrentInstance,
+        reactive,
+        toRefs,
+        onMounted,
+      } = VueRuntimeDOM
+
+      // 如何缓存的？  vnode， 为了性能考虑 。 我们弄一个盒子将渲染的结果临时的移动到内存中，如果后续切换回来，再从内存中直接拿出来就好了
+      const Component1 = {
+        n: 1,
+        render: () => {
+          console.log('render1')
+          return h('a', 'a1')
+        },
+      }
+      const Component2 = {
+        n: 2,
+        render: () => {
+          console.log('render2')
+          return h('a', 'a2')
+        },
+      }
+      const Component3 = {
+        n: 3,
+        render: () => {
+          console.log('render3')
+          return h('a', 'a3')
+        },
+      }
+      render(
+        h(
+          KeepAlive,
+          { max: 2 },
+          {
+            default: () => h(Component1),
+          },
+        ),
+        app,
+      )
+
+      setTimeout(() => {
+        render(
+          h(
+            KeepAlive,
+            { max: 2 },
+            {
+              default: () => h(Component2),
+            },
+          ),
+          app,
+        )
+      }, 1000)
+
+      setTimeout(() => {
+        render(
+          h(
+            KeepAlive,
+            { max: 2 },
+            {
+              default: () => h(Component3),
+            },
+          ),
+          app,
+        )
+      }, 2000)
+      setTimeout(() => {
+        render(
+          h(
+            KeepAlive,
+            { max: 3 },
+            {
+              default: () => h(Component1),
+            },
+          ),
+          app,
+        )
+      }, 3000)
+      // setTimeout(()=>{
+      //     render(h(KeepAlive,{max:3},{
+      //         default:()=>h(Component1)
+      //     }),app);
+      // },3000)
+
+      // setTimeout(()=>{
+      //     render(h(KeepAlive,null,{
+      //         default:()=>h(Component2)
+      //       }),app);
+      // },1000)
+      // setTimeout(()=>{
+      //     render(h(KeepAlive,null,{
+      //         default:()=>h(Component1)
+      //       }),app);
+      // },3000)
+    </script>
+  </body>
+</html>

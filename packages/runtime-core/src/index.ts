@@ -8,4 +8,6 @@ export { createRenderer } from './renderer'
 
 export { getCurrentInstance } from './component'
 
+export { KeepAlive } from './keepAlive'
+
 export * from './apiLifecycle'

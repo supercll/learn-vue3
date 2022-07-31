@@ -7,8 +7,9 @@ export let instance = null
 export const getCurrentInstance = () => instance
 export const setCurrentInstance = i => (instance = i)
 
-export function createComponentInstance(vnode) {
+export function createComponentInstance(vnode, parent) {
   let instance = {
+    ctx: {} as any, // 当前实例的上下文，用于存储信息的
     data: null, // 组件本身的数据
     vnode, // 标识实例对应的虚拟节点
     subTree: null, // 组件对应的渲染的虚拟节点
@@ -24,7 +25,9 @@ export function createComponentInstance(vnode) {
     attrs: {}, // 这个代表的是 没有接受
 
     proxy: null, // 代理对象
-    slots: null, // 初始化插槽属性
+    setupState: {}, // setup返回的是对象则要给这个对象赋值
+    slots: {}, // 存放组件的所有插槽信息
+    parent, // 标记当前组件的父亲是谁
   }
 
   return instance
@@ -105,7 +108,10 @@ export function setupComponent(instance) {
   let { setup } = type
   if (setup) {
     // 对setup做相应处理
-    const setupContext = {}
+    const setupContext = {
+      slots: instance.slots, //插槽属性
+      attrs: instance.attrs, // attrs
+    }
     setCurrentInstance(instance) // 在调用setup的时候保存当前实例
     // 执行setup函数，结果可能是render函数或者对象爱敬，存入setupState中去
     const setupResult = setup(instance.props, setupContext)
@@ -123,7 +129,12 @@ export function setupComponent(instance) {
       return console.warn('The data option must be a function.')
     instance.data = reactive(data.call(instance.proxy))
   }
+
   if (!instance.render) {
-    instance.render = render
+    if (render) {
+      instance.render = render
+    } else {
+      // 模板编译原理
+    }
   }
 }
